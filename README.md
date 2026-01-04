@@ -150,9 +150,12 @@ update bulkcmd "saveenv"
    printenv usid
 2) ถ้าเจอเป็นตัวแปร env:
     update.exe bulkcmd "keyman init 0x1234"
+   
     update.exe bulkcmd "keyman write usid str 1234567890"
+   
     update.exe bulkcmd "saveenv"
-3) รีบูต
+   
+4) รีบูต
    reset
 
 หมายเหตุ:
