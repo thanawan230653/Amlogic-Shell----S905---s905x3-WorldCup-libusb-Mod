@@ -1,190 +1,171 @@
-README.txt
-คู่มือพื้นฐาน: Amlogic update bulkcmd + UART/TTL (U‑Boot/Android)
+คู่มือรวมคำสั่ง (เยอะๆ) : Amlogic update bulkcmd + UART/TTL + U‑Boot + Fastboot
+เวอร์ชัน: 2.1 (เพิ่ม run update / update command / keyman อธิบายละเอียดแบบปลอดภัย)
 
 ⚠️ คำเตือนสำคัญ
 - ทำเฉพาะกับอุปกรณ์ที่ “เป็นของคุณ/ได้รับอนุญาต” เท่านั้น
-- คำสั่งบางอย่าง (ล้างพาร์ทิชัน/แฟลชบูตโหลดเดอร์) มีโอกาสทำให้เครื่อง “บริค” ได้
+- คำสั่งประเภท write/erase/flash มีโอกาสทำให้เครื่อง “บริค” ได้ทันที
 - UART ของ TV Box ส่วนมากเป็น 3.3V (ห้ามใช้ 5V) และ “ห้ามต่อ VCC” จาก USB‑TTL ไปที่บอร์ดถ้าไม่มั่นใจ
+- อุปกรณ์บางรุ่นมี Secure Boot / AVB / OEM Lock / eFuse: จะปลดล็อกไม่ได้ถ้าไม่มีขั้นตอน/คีย์จากผู้ผลิต
+- ไฟล์นี้ “จะไม่สอน” การเขียน/แก้คีย์ถาวร (DRM/OTP/eFuse) หรือวิธีบายพาสระบบความปลอดภัย
 
 ────────────────────────────────────────────────────────────
-1) โหมด/คำศัพท์ที่เจอบ่อย (Amlogic)
-- Burn/WorldCup mode: โหมดที่เครื่องเข้าสู่การแฟลชผ่าน USB (USB Burning Tool / update tool)
-- U‑Boot console: เชลล์บูตโหลดเดอร์ที่คุยผ่าน UART/TTL
-- Fastboot mode: โหมดแฟลช/สั่งงานบูตโหลดเดอร์ด้วย fastboot (Android platform tools)
+0) หลักสำคัญที่สุด: “คำสั่งจริงของเครื่องคุณ” ต้องดูจาก help
+U‑Boot ของแต่ละกล่องไม่เหมือนกัน แถม vendor บางเจ้าเพิ่มคำสั่งเฉพาะ (store, keyman, usb_update ฯลฯ)
+วิธีเอา “ครบที่สุด” คือดูจาก help บนเครื่องคุณเอง:
 
-────────────────────────────────────────────────────────────
-2) เครื่องมือที่ใช้ (เลือกตามงาน)
-A) แฟลชเฟิร์มแวร์ (GUI)
-- Amlogic USB Burning Tool (Windows) ใช้แฟลชไฟล์ .img เพื่อกู้/อัปเกรดเฟิร์มแวร์
+บน UART (U‑Boot):
+  help
+  help <ชื่อคำสั่ง>
 
-B) สั่งคำสั่งผ่าน USB แบบบรรทัดคำสั่ง
-- Amlogic Update Tool / update.exe (Windows) หรือไบนารีบน Linux (บางแพ็กเรียก “update”)
-  ใช้ส่งคำสั่งไปยัง U‑Boot ผ่าน USB (WorldCup/libusb driver) เช่น bulkcmd, partition ฯลฯ
-
-C) ทางเลือกโอเพ่นซอร์ส/ครอสแพลตฟอร์ม (ขึ้นกับรุ่น/ชิป/ไดรเวอร์)
-- aml-flash-tool (เช่นของ OSMC / Khadas utils)
-- bulkcmd.py (บางงานวิจัย/โปรเจกต์ reverse-engineering ใช้แทน update bulkcmd)
-
-D) UART/TTL
-- USB‑to‑TTL adapter แบบ 3.3V (เช่น CP2102 / FT232 / CH340)
-- โปรแกรม Terminal: PuTTY (Windows), minicom/screen (Linux), TeraTerm ฯลฯ
-
-────────────────────────────────────────────────────────────
-3) การต่อสาย UART/TTL (พื้นฐาน)
-อุปกรณ์: USB‑TTL 3.3V + สาย Dupont
-หลักการต่อ (ไขว้สัญญาณ):
-- GND (USB‑TTL)  → GND (บอร์ด)
-- TXD (USB‑TTL)  → RX (บอร์ด)
-- RXD (USB‑TTL)  → TX (บอร์ด)
-- (ปกติ) ไม่ต้องต่อ VCC
-
-ค่าตั้งพอร์ตที่พบบ่อย:
-- 115200 baud, 8 data bits, No parity, 1 stop bit (115200 8N1)
-(บางบอร์ดอาจเป็น 1500000 หรือ 921600 ให้ลองไล่)
-
-Tip:
-- ถ้า “ตัวอักษรก๊องแก๊ง” ส่วนใหญ่คือ baud ไม่ตรง หรือสลับ TX/RX
-
-────────────────────────────────────────────────────────────
-4) คำสั่งพื้นฐานผ่าน UART (U‑Boot console)
-หมายเหตุ: คำสั่งที่มีจริง “ขึ้นกับ U‑Boot ของแต่ละเครื่อง” ให้เริ่มจาก help ก่อน
-
-# ดูคำสั่งทั้งหมด
-help
-
-# ดูตัวแปรสภาพแวดล้อม (env)
-printenv
-
-# ตั้งค่า env (ตัวอย่าง)
-setenv bootdelay 3
-saveenv
-
-# รีบูต/รีเซ็ต
-reset
-
-# ตรวจสื่อเก็บข้อมูล
-mmc info
-mmc list
-
-# เริ่ม USB (บางรุ่นต้องสั่งก่อนใช้แฟลชผ่าน USB storage)
-usb start
-usb stop
-
-# เข้าสู่ fastboot จาก U‑Boot (บางบอร์ดใช้รูปแบบนี้)
-fastboot 0
-# หรือบางเจ้าใช้คำสั่ง/สคริปต์: run fastboot / run update ฯลฯ
-run update
-
-────────────────────────────────────────────────────────────
-5) update bulkcmd คืออะไร + ใช้ทำอะไรได้
-แนวคิด:
-- bulkcmd = การ “ส่งคำสั่ง U‑Boot” ผ่าน USB (WorldCup/Update Tool) เหมือนเราพิมพ์ใน UART นั่นแหละ
-- ดังนั้นคำสั่งที่ใช้ได้ = คำสั่งที่ U‑Boot ของเครื่องนั้นรองรับ
-
-รูปแบบคำสั่ง (ตัวอย่างแนวทาง)
-Windows (update.exe):
+บน update.exe (bulkcmd ส่งเข้า U‑Boot):
   update.exe bulkcmd "help"
-  update.exe bulkcmd "printenv"
-  update.exe bulkcmd "reset"
-
-Linux (บางแพ็กชื่อ update):
-  sudo ./update bulkcmd "help"
-
-ตัวอย่างที่พบบ่อย (ใช้เมื่อจำเป็น)
-- เข้า fastboot จากโหมด Update/WorldCup:
-  update.exe bulkcmd fastboot
-  (บางรุ่นต้องใส่เป็นสตริง: update.exe bulkcmd "fastboot")
-
-- รีเซ็ต:
-  update.exe bulkcmd "reset"
-
-- แฟลชไฟล์แยกพาร์ทิชัน (ตัวอย่างจากเอกสาร/รีลีสโน้ตบางชุด):
-  update.exe partition bootloader u-boot.bin
-  update.exe partition boot dtb.img
-  update.exe partition boot boot.img
-
-⚠️ “erase / store erase / keyman / key write” เป็นคำสั่งที่อาจลบถาวรหรือกระทบคีย์/DRM
-ให้ใช้เฉพาะเมื่อมีเอกสารของรุ่นนั้น ๆ และรู้ผลลัพธ์แน่ชัด
+  update.exe bulkcmd "help env"
+  update.exe bulkcmd "help store"
+  update.exe bulkcmd "help fastboot"
 
 ────────────────────────────────────────────────────────────
-6) เข้าสู่ Fastboot แบบ “ปลอดภัย”
-วิธีที่พบบ่อย:
-A) จาก Android (ถ้าบูตเข้าได้)
-- adb reboot bootloader
+1) คำที่คนชอบสับสน:  update  vs  run update  vs  update.exe bulkcmd "update"
+1.1  update (คำสั่ง U‑Boot)
+- บางบอร์ด (โดยเฉพาะชุดอ้างอิงของ Amlogic/บาง vendor) มี “คำสั่งชื่อ update” ใน U‑Boot
+- จุดประสงค์มักคือ “เข้า USB burning mode / WorldCup mode” เพื่อให้ PC แฟลชผ่าน USB ได้
 
-B) จาก U‑Boot (UART)
-- fastboot 0   (ถ้ารองรับ)
-- หรือ run fastboot / run update (แล้วแต่ env)
+ตัวอย่างการเรียก (ผ่าน UART):
+  update
+แล้วเครื่องจะเข้าโหมดที่ PC เห็นอุปกรณ์สำหรับแฟลช (USB Burning Tool / update.exe)
 
-C) จาก update bulkcmd (โหมด WorldCup)
-- update.exe bulkcmd fastboot
+1.2  run update (คำสั่ง U‑Boot: run + env variable ชื่อ update)
+- run = สั่งให้ U‑Boot รัน “สคริปต์ที่เก็บในตัวแปร env”
+- update (ในกรณีนี้) คือ “ชื่อ env variable” ที่ภายในอาจเรียกคำสั่งหลายตัว เช่น init USB, ตั้งค่า GPIO แล้วค่อยเรียก update ฯลฯ
 
-────────────────────────────────────────────────────────────
-7) ปลดล็อก Bootloader (แนวทางที่ถูกต้องตาม Android)
-- โดยทั่วไปการปลดล็อกทำผ่าน fastboot:
-  fastboot flashing unlock
-- การปลดล็อกจะมีหน้าจอยืนยันบนเครื่อง และ “ล้างข้อมูล (factory reset)” เพื่อป้องกันการเข้าถึงข้อมูลโดยไม่ได้รับอนุญาต
-- การล็อกกลับ:
-  fastboot flashing lock
-- ผ่านตัว update หรือ bulkcmd
-update bulkcmd "setenv -f EnableSelinux permissive"
-update bulkcmd "env set lock 0"
-update bulkcmd "env set avb2 0"
-update bulkcmd "env set oem_lock unlock"
-update bulkcmd "store rom_protect off"
-update bulkcmd "saveenv"
+วิธีเช็คก่อนใช้:
+  printenv update
+หรือ (U‑Boot ใหม่):
+  env print update
 
-หมายเหตุสำคัญ:
-- “การพยายามปลดล็อก/บายพาสผ่าน UART ด้วยการแก้ค่า secure/efuse/คีย์” เป็นเรื่องเฉพาะรุ่นและมีความเสี่ยงสูง
-  (และอาจเข้าข่ายการหลบเลี่ยงระบบความปลอดภัย) จึงไม่ควรทำหากไม่มีเอกสารผู้ผลิต/สิทธิ์ที่ถูกต้อง
+ถ้าพบว่ามีค่าอยู่ เช่น update=xxx;yyy;zzz
+ให้รัน:
+  run update
 
-────────────────────────────────────────────────────────────
-8) เปลี่ยน Serial/USID แบบที่ “ไม่ไปยุ่งคีย์ถาวร” (แนวทางทั่วไป)
-- หลายบอร์ดมี serial อยู่ใน U‑Boot env เช่น serial#, usid, androidboot.serialno ฯลฯ
-แนวทาง:
-1) ดูก่อนว่าเก็บชื่ออะไร
-   printenv
-   (แล้วมองหาบรรทัดที่เกี่ยวกับ serial/usid/androidboot.serialno)
-   หรือถ้ารู้ชื่อตัวแปรแล้วให้ระบุชื่อตรง ๆ เช่น:
-   printenv serial#
-   printenv usid
-2) ถ้าเจอเป็นตัวแปร env:
-    update.exe bulkcmd "keyman init 0x1234"
-   
-    update.exe bulkcmd "keyman write usid str 1234567890"
-   
-    update.exe bulkcmd "saveenv"
-   
-4) รีบูต
-   reset
+1.3  update.exe bulkcmd "update" (ฝั่ง PC ส่งคำว่า update เข้า U‑Boot)
+- bulkcmd คือส่ง “คำสั่ง U‑Boot” ผ่าน USB (WorldCup/Update protocol)
+- ดังนั้นถ้า U‑Boot มีคำสั่ง update จริง คุณสามารถสั่งจาก PC ได้ว่า:
+  update.exe bulkcmd "update"
+(ผลลัพธ์ขึ้นกับ U‑Boot: อาจเข้า burn mode / หรือเป็นคำสั่งคนละอย่าง)
 
-หมายเหตุ:
-- ถ้าซีเรียลถูกเก็บใน “พื้นที่คีย์/OTP/eFuse (เช่น keyman)” การเขียนผิดอาจแก้กลับไม่ได้
-  แนะนำให้ใช้วิธีที่ผู้ผลิตระบุเท่านั้น
+สรุปสั้นๆ:
+- “update” = อาจเป็นคำสั่ง U‑Boot
+- “run update” = ใช้คำสั่ง run เพื่อรัน env variable ชื่อ update
+- “update.exe bulkcmd …” = PC ส่งข้อความนั้นเข้า U‑Boot (เหมือนคุณพิมพ์ผ่าน UART)
 
 ────────────────────────────────────────────────────────────
-9) ลิงก์รูปประกอบ (เอาไว้ดูภาพประกอบ/การต่อสาย/หน้าตาเครื่องมือ)
-(วางลิงก์ไว้ในโค้ดบล็อกตามข้อกำหนดของระบบ)
+2) update bulkcmd fastboot / update bulkcmd update (แนวทางใช้งานจริง)
+2.1 เข้า fastboot “จาก WorldCup/Update tool”
+เงื่อนไข: U‑Boot ต้องรองรับคำสั่ง fastboot (ดูได้จาก help fastboot)
 
-- Amlogic USB Burning Tool (คู่มือ+ภาพหน้าจอ):
-  https://wiki.coreelec.org/coreelec:aml_usb_tool
+บน PC:
+  update.exe identify
+  update.exe bulkcmd "help fastboot"
+  update.exe bulkcmd "fastboot"          (บางรุ่น)
+  update.exe bulkcmd "fastboot usb 0"    (บางรุ่นตาม U‑Boot docs)
+จากนั้นใช้ fastboot บน PC:
+  fastboot devices
+  fastboot getvar all
 
-- ตัวอย่างภาพ “UART pinout บนบอร์ด Amlogic” (กระทู้ LibreELEC):
-  https://forum.libreelec.tv/thread/29167-unreadable-uart-output-on-s905-board/
+2.2 เข้า USB burning mode “จาก U‑Boot”
+เงื่อนไข: U‑Boot ต้องมีคำสั่ง update (หรือมี env script update)
 
-- ภาพตัวอย่าง USB‑to‑TTL (CP2102):
-  https://www.amazon.com/HiLetgo-CP2102-Converter-Adapter-Downloader/dp/B00LODGRV8
+บน UART:
+  update
+หรือ:
+  run update
 
-- ภาพไดอะแกรมหลักการต่อ UART (TX/RX/GND):
-  https://www.slideshare.net/slideshow/uart-communication/250706087
+2.3 “ฮาร์ดคอ” ที่เจอบ่อย: สคริปต์ env รวมหลายคำสั่งแล้วเรียก run
+- vendor มักเก็บเป็น env เช่น: upgrade, update, storeboot, recovery_from_sd ฯลฯ
+- หลักการคือดูด้วย printenv แล้วค่อย run ตามชื่อที่มีจริง
+
+ตัวอย่างที่ปลอดภัย (อ่านอย่างเดียว):
+  printenv
+  printenv bootcmd
+  printenv upgrade
+แล้วค่อย:
+  run upgrade   (ถ้ามี)
 
 ────────────────────────────────────────────────────────────
-10) แหล่งอ้างอิง/อ่านต่อ (แนวคิด/เอกสาร)
-- Android AOSP: Lock/Unlock bootloader & fastboot flashing unlock/lock
-  https://source.android.com/docs/core/architecture/bootloader/locking_unlocking
-- CoreELEC Wiki: Amlogic USB Burning Tool
-  https://wiki.coreelec.org/coreelec:aml_usb_tool
-- เอกสาร/รีลีสโน้ตที่พูดถึง update.exe และตัวอย่างคำสั่ง partition/bulkcmd (Openlinux release notes):
-  (อาจเป็น PDF กระจายหลายที่ ให้ค้นคำว่า “Amlogic Openlinux Release Notes update.exe bulkcmd”)
+3) keyman คืออะไร (อธิบายแบบปลอดภัย) + ทำไมถึงเจอคำสั่งพวกนี้
+keyman (ใน U‑Boot สาย Amlogic) มักเป็น “ระบบอ่าน/จัดการคีย์/ข้อมูลประจำเครื่อง” เช่น usid, mac ฯลฯ
+หลาย vendor ใช้ keyman “อ่าน usid แล้วเอาไปใส่ใน bootargs” เพื่อให้ Android เห็น serialno
+
+สิ่งที่ควรรู้ก่อนแตะ keyman:
+- บางอุปกรณ์เก็บคีย์ในที่ “ถาวร/ย้อนกลับไม่ได้” (OTP/eFuse/secure storage)
+- การ “เขียน” ค่าผิด อาจทำให้ DRM/Network/Provisioning พังถาวร
+- ไฟล์นี้จึง “ไม่สอนการเขียน/เปลี่ยน usid/mac/key” ผ่าน keyman (เพื่อความปลอดภัย)
+
+สิ่งที่ทำได้แบบปลอดภัยกว่า:
+A) ใช้ keyman “อ่านเพื่อดีบัก” (ถ้าเครื่องคุณ/งานคุณจำเป็นจริง และคุณมีสิทธิ์)
+- ขั้นตอน/รูปแบบคำสั่ง “แตกต่างตาม U‑Boot” ให้ดู `help keyman` ก่อนทุกครั้ง
+
+B) ถ้าต้องการ “เปลี่ยน serial แบบชั่วคราว/ไม่ถาวร”
+- ให้ลองดูว่ามีตัวแปร env อย่าง serial#, serialno, androidboot.serialno ไหม
+  printenv | หา serial
+- ถ้ามี ให้เปลี่ยนผ่าน env แล้ว saveenv (ความเสี่ยงต่ำกว่าการเขียนคีย์ถาวร)
+
+────────────────────────────────────────────────────────────
+4) U‑Boot: run / env / saveenv (พื้นฐานที่ต้องรู้)
+คำสั่งพื้นฐาน:
+  help
+  printenv
+  setenv <var> <value>
+  saveenv
+  run <var>
+  reset
+
+ตัวอย่างแนวคิด run (ไม่ต้องทำตามตรงๆ):
+- bootcmd มักเป็นสคริปต์ที่เรียก run distro_bootcmd หรือ run storeboot
+- คุณแก้ bootdelay/bootargs ได้ แล้ว saveenv เพื่อเก็บถาวร
+
+────────────────────────────────────────────────────────────
+5) Fastboot ฝั่ง PC (พื้นฐาน→โหด)
+พื้นฐาน:
+  fastboot devices
+  fastboot getvar all
+  fastboot reboot
+แฟลช:
+  fastboot flash <partition> <file.img>
+ล้าง:
+  fastboot erase <partition>
+A/B:
+  fastboot getvar current-slot
+  fastboot set_active a|b
+
+────────────────────────────────────────────────────────────
+6) ลิงก์อ้างอิง + รูปประกอบ (อ่านต่อ/ภาพต่อสาย)
+```text
+U‑Boot: Environment variables / env / ตัวอย่าง bootcmd ที่ใช้ run …
+https://docs.u-boot.org/en/latest/usage/environment.html
+https://docs.u-boot.org/en/latest/usage/cmd/env.html
+
+U‑Boot: Fastboot (คำสั่งฝั่ง U‑Boot เช่น fastboot usb 0)
+https://docs.u-boot.org/en/latest/android/fastboot.html
+
+Android AOSP: Lock/Unlock bootloader (แนวทางมาตรฐาน)
+https://source.android.com/docs/core/architecture/bootloader/locking_unlocking
+
+CoreELEC Wiki: Amlogic USB Burning Tool (มีภาพ/ขั้นตอน)
+https://wiki.coreelec.org/coreelec:aml_usb_tool
+
+SparkFun: CP2102 USB‑to‑Serial Hookup Guide (มีรูปต่อสาย TX/RX/GND)
+https://learn.sparkfun.com/tutorials/cp2102-usb-to-serial-converter-hook-up-guide/all
+
+Openlinux Release Notes (มีตัวอย่าง “ใน uboot ให้รัน update เพื่อเข้า usb burning mode”
+และมีตัวอย่าง update.exe partition + update.exe bulkcmd "reset")
+https://device.report/m/5b1e754da9e6a89d81016558396aaf6aa76d3f9ea272fff79c072df21720dda4.pdf
+```
+
+────────────────────────────────────────────────────────────
+7) เช็กลิสต์เซฟๆ ก่อนลองคำสั่งหนักๆ
+- เซฟ output ของ `printenv` เก็บไว้ก่อนแก้
+- ถ้าจะเขียน/ลบ: หาคู่มือรุ่นนั้น ๆ หรือ dump ของเดิมก่อน
+- เริ่มจาก “บูตชั่วคราว” (SD/USB/TFTP/fastboot boot) ก่อนเขียนถาวร
+- อย่าพยายามแก้คีย์/OTP/eFuse โดยเดา (เสี่ยงถาวร)
 
 จบไฟล์
